@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+
+	<!-- Servlets -->
+	<!-- Cloud Vision API -->
+	<servlet>
+		<servlet-name>getImageInformation</servlet-name>
+		<servlet-class>cloud.vision.api.GetImageInformation</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>getImageInformation</servlet-name>
+		<url-pattern>/api/vision/get/imageInformation</url-pattern>
+	</servlet-mapping>
+
+	<!-- Google Cloud Storage -->
+	<servlet>
+		<servlet-name>GetObjGetURL</servlet-name>
+		<servlet-class>gcs.GetObjGetURL</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>GetObjGetURL</servlet-name>
+		<url-pattern>/api/gcs/get/objURL</url-pattern>
+	</servlet-mapping>
+
+	<servlet>
+		<servlet-name>GetObjPostURL</servlet-name>
+		<servlet-class>gcs.GetObjPostURL</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>GetObjPostURL</servlet-name>
+		<url-pattern>/api/gcs/post/objURL</url-pattern>
+	</servlet-mapping>
+
+	<servlet>
+		<servlet-name>PutObjACL</servlet-name>
+		<servlet-class>gcs.PutObjACL</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>PutObjACL</servlet-name>
+		<url-pattern>/api/gcs/put/objACL</url-pattern>
+	</servlet-mapping>
+
+	<!-- Initial page -->
+	<welcome-file-list>
+		<welcome-file>index.html</welcome-file>
+	</welcome-file-list>
+</web-app>

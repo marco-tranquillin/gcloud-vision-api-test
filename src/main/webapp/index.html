@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+	
+	<style>
+	.img{
+		height: 640px;
+    	width: 480px;
+	}
+	</style>
+	
+	
+    <!-- JsonEditor -->
+    <link href="jsonEditor/jsoneditor.min.css" rel="stylesheet" type="text/css">
+    <script src="jsonEditor/jsoneditor.min.js"></script>
+	
+	<!-- jQuery -->
+	<script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+	
+	<!-- BootStrap -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+	
+	<!-- jQuery File Upload -->
+    <script src="jQueryFileUpload/js/vendor/jquery.ui.widget.js"></script>
+	<script src="jQueryFileUpload/js/jquery.iframe-transport.js"></script>
+	<script src="jQueryFileUpload/js/jquery.fileupload.js"></script>
+	<script>
+		//global variables
+		var my_bucket;
+		var my_policy;
+		var my_GoogleAccessId;
+		var my_signature;
+		var my_gcs_url;
+		var my_key;
+		var my_auth_token;
+		var useIframe=false;
+		var UTCtimeMillis=new Date().getTime()+new Date().getTimezoneOffset()*60*1000;
+		var uploaded_file_url;
+		
+		//check Microsoft Internet Explorer version
+		function msieversion() {
+	        var ua = window.navigator.userAgent;
+	        var msie = ua.indexOf("MSIE ");
+	     	// If Internet Explorer, return version number
+	        if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./))      
+	            return(parseInt(ua.substring(msie + 5, ua.indexOf(".", msie))));
+	        else                
+	            return 0;
+		}
+		
+		//check if the browser is Internet Explorer
+		if(msieversion()>9){
+			useIframe=true; //using IFrame if browser is IE 9 or lower
+		}
+			
+		<!-- Google Cloud Storage - Get Object Post URL -->
+		$( document ).ready(function() {
+			//get details needed to upload file into bucket
+   			$.ajax({
+	   			type:'POST',
+		   		url:'/api/gcs/post/objURL',
+		   		data: {},
+		   		async:false,
+		   		success: function(data){
+		   					my_bucket=data.bucket;
+		   					my_policy=data.policy;
+		   					my_GoogleAccessId=data.googleAccessID;
+		   					my_signature=data.signature;
+		   					my_gcs_url=data.url;
+		   				}
+				});
+			});
+		
+		<!-- Google Cloud Storage - Get Object GET URL -->
+		function getObject(){
+			console.log('getObject - input: ' + my_key)
+   			$.ajax({
+	   			type:'POST',
+		   		url:'/api/gcs/get/objURL',
+		   		data: {'inputFile':my_key},
+		   		async:true,
+		   		success: function(data){
+		   					console.log('getObject - output: ' + JSON.stringify(data));
+		   					URL=data.url+"/"+my_key+"?GoogleAccessId="+data.googleAccessId+"&Expires="+data.expiration+"&Signature="+data.signature;
+		   					$('#uploadedImage').html('<img src="'+URL+'">')
+			   				$('#uploadedImage').css('visibility','visible');
+		   				}
+				});
+   			return URL;
+		}
+		
+		<!-- Google Cloud Vision API -->
+		function getCloudVisionApiData(){
+			console.log('convertFile - input: ' + my_key);
+   			$.ajax({
+	   			type:'GET',
+		   		url:'/api/vision/get/imageInformation?maxResults=10&imageName='+my_key,
+		   		async:false,
+		   		success: function(data){
+		   					console.log(data);
+		   					//display JSON data
+		   			        var container = document.getElementById("jsonEditor");
+		   			        var options = {};
+		   			        var editor = new JSONEditor(container, options);
+		   			        // set json
+		   			        editor.set(data);
+		   			        // get json
+		   			        var json = editor.get();
+		   			        //show data
+		   			    	$('#jsonEditor').css('visibility','visible');
+				},
+				error: function(XMLHttpRequest, textStatus, errorThrown) { 
+			        alert("Cloud Vision API ERROR.\n " + errorThrown); 
+			    } 
+		});
+   			return URL;
+		}
+   	  	 </script>
+	
+<title>GCP - Cloud Vision API - TEST</title>
+</head>
+<body>
+
+    <div class="container-fluid">
+      <div class="row">
+      	<div class="col-xs-12 col-md-8">
+      		<h1>Cloud Vision APIs<br><small>Test</small></h1>
+      		<hr>
+      		<p class="lead">
+      			Upload <strong>your image</strong> and analyze it using <strong><a target="_blank" href="https://cloud.google.com/vision/">Cloud Vision APIs</a></strong>.<br>
+      			More info <a target="_blank" href="https://cloud.google.com/vision/docs">here</a>.
+      		</p>
+      	</div>
+      </div>
+      <ol>
+  		<li><em>Upload your image</em></li>
+  		<div id='fileUploadSpinner' class="row">
+	  		<div class="col-md-4">
+	  			<input id="fileupload" type="file" name="file" accept="image/*">
+	  		</div>
+	  		<div class="col-md-4">
+	  			<div id='spinner' style="visibility:hidden"><img src='images/ajax-loader.gif' Hspace="10" Vspace="10">Upload and analysis in progress. Please wait...</div>
+	  		</div>
+  		</div>
+  		<div id='uploadedFileInfo'></div>
+  		<script>
+  			//initialize jQuery FileUpload
+	  		$(function () {
+	  		//upload file
+	   			$('#fileupload').fileupload({
+			    	url: my_gcs_url,
+			    	type: 'POST',
+			    	forceIframeTransport: true, //need to use this modality because IE8/9 does not work with XHR
+			        add: function (e, data) {
+			        	$('#spinner').css('visibility','visible');
+			        	$('#fileupload').attr("disabled", true);
+			        	//add the name to the file
+			        	//get file name
+		        		//my_key=escape(data.files[0].name);
+			        	var inputFileName=data.files[0].name.split(".");
+			        	var fileExt=inputFileName[inputFileName.length-1];
+			        	my_key=new Date().getTime()+"."+fileExt;
+			        	//set file upload options 
+			        	$('#fileupload').fileupload(
+			        		'option',
+			        		{
+				        		formData:[
+						    	          {
+						    	        	  name:'key',
+						    	          	  value:my_key
+						    	        	  
+						    	          },
+						    	          {
+						    	        	  name:'bucket',
+						    	          	  value:my_bucket
+						    	        	  
+						    	          },
+						    	          {
+						    	        	  name:'policy',
+						    	          	  value:my_policy
+						    	        	  
+						    	          },
+						    	          {
+						    	        	  name:'GoogleAccessId',
+						    	        	  value: my_GoogleAccessId
+						    	        	  
+						    	          },
+						    	          {
+						    	        	  name:'success_Action_status',
+						    	        	  value: '201'
+						    	          },
+						    	          {
+						    	        	  name:'signature',
+						    	          	  value:my_signature
+						    	        	  
+						    	          }
+						    	          ]
+			        		}
+			        	);
+			        	
+			        	//submit the form
+						data.submit();
+			        	
+			        },
+			        //success callback
+			        success:function(e,data){
+			        	//check if the file has been uploaded correctly into GCS
+			        
+			        	$.ajax({
+				   			type:'POST',
+					   		url:'/api/gcs/put/objACL',
+					   		data: {'inputFile':my_key},
+					   		async:false,
+					   		success: function(data){
+					   			if(data=="200"){
+					   				$('#fileUploadSpinner').remove();
+					   				$('#fileupload').remove();
+					   				getObject();
+					   				getCloudVisionApiData();
+					   			}
+					   			else{
+					   				alert('WARNING: an error occured during upload. Please retry.');
+					   			}
+					   		}
+							});
+			        }
+	   			});
+	  		});
+		</script>
+		<div id='uploadedImage' style="visibility:hidden;max-width: 100%;max-height: 100%;"></div>
+		<div id="jsonEditor" style="visibility:hidden;width: 600px; height: 400px;"></div>
+		
+    </div> 
+    <footer>
+    	<div class="container text-center">
+    		<p>
+    		Marco Tranquillin 2016 - <a href="mailto:marco.tranquillin@gmail.com?Subject=Cloud Vision API">marco.tranquillin@gmail.com</a>
+    		</p>
+    		<p>
+    		<a href="https://twitter.com/MrTranqui" class="twitter-follow-button" data-show-count="false" data-size="large">Follow @MrTranqui</a>
+		<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+    		</p>
+  		</div>
+    </footer>
+  </body>
+</html>
